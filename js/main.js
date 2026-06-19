@@ -15,10 +15,13 @@ class Game {
     this.speed = 1;
     this.dayTimer = 0;
     this.lastTime = performance.now();
+    this.activeChatUnit = null;
+    this.seenAnnouncements = 0;
 
     this.seedKingdoms(3);
     this.bindUI();
     this.bindInput();
+    this.bindChat();
     requestAnimationFrame(this.loop.bind(this));
   }
 
@@ -37,16 +40,28 @@ class Game {
 
   bindUI() {
     const bar = document.getElementById('power-bar');
-    for (const p of POWERS) {
-      const btn = document.createElement('div');
-      btn.className = 'power-btn' + (p.id === this.selectedPower ? ' selected' : '');
-      btn.innerHTML = `${p.icon}<span class="label">${p.label}</span>`;
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.power-btn').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        this.selectedPower = p.id;
-      });
-      bar.appendChild(btn);
+    for (const group of POWER_GROUPS) {
+      const groupEl = document.createElement('div');
+      groupEl.className = 'power-group';
+      const label = document.createElement('div');
+      label.className = 'group-label';
+      label.textContent = group.label;
+      const buttons = document.createElement('div');
+      buttons.className = 'group-buttons';
+      for (const p of group.powers) {
+        const btn = document.createElement('div');
+        btn.className = 'power-btn' + (p.id === this.selectedPower ? ' selected' : '');
+        btn.innerHTML = `${p.icon}<span class="label">${p.label}</span>`;
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.power-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          this.selectedPower = p.id;
+        });
+        buttons.appendChild(btn);
+      }
+      groupEl.appendChild(label);
+      groupEl.appendChild(buttons);
+      bar.appendChild(groupEl);
     }
 
     document.getElementById('brush-size').addEventListener('input', (e) => {
@@ -121,12 +136,71 @@ class Game {
     window.addEventListener('resize', () => this.renderer.resize());
   }
 
+  bindChat() {
+    document.getElementById('chat-close').addEventListener('click', () => this.closeChat());
+    const send = () => {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text || !this.activeChatUnit) return;
+      input.value = '';
+      this.sendChat(text);
+    };
+    document.getElementById('chat-send').addEventListener('click', send);
+    document.getElementById('chat-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') send();
+    });
+  }
+
+  openChat(unit) {
+    this.activeChatUnit = unit;
+    const panel = document.getElementById('chat-panel');
+    panel.classList.add('open');
+    document.getElementById('chat-title').textContent =
+      `${unit.name} (${unit.isRoyal ? unit.role : (unit.role || unit.species)})`;
+    const sub = document.getElementById('chat-subtitle');
+    if (sub) sub.textContent = unit.backstory || '';
+    this.renderChatLog();
+  }
+
+  closeChat() {
+    this.activeChatUnit = null;
+    document.getElementById('chat-panel').classList.remove('open');
+  }
+
+  renderChatLog() {
+    const log = document.getElementById('chat-log');
+    log.innerHTML = '';
+    const unit = this.activeChatUnit;
+    if (!unit) return;
+    for (const m of unit.memory) {
+      const div = document.createElement('div');
+      div.className = 'chat-msg ' + (m.who === 'user' ? 'user' : 'npc');
+      div.textContent = m.text;
+      log.appendChild(div);
+    }
+    log.scrollTop = log.scrollHeight;
+  }
+
+  async sendChat(text) {
+    const unit = this.activeChatUnit;
+    if (!unit || unit.dead) { this.closeChat(); return; }
+    this.renderChatLog();
+    const div = document.createElement('div');
+    div.className = 'chat-msg user';
+    div.textContent = text;
+    document.getElementById('chat-log').appendChild(div);
+    await getNpcReply(unit, unit.kingdom, text);
+    this.renderChatLog();
+  }
+
   applyAtScreen(sx, sy) {
     const [wx, wy] = this.renderer.screenToWorld(sx, sy);
     if (!this.world.inBounds(Math.round(wx), Math.round(wy))) return;
     const result = applyPower(this, this.selectedPower, wx, wy, this.brushSize);
-    if (this.selectedPower === 'inspect' && result) {
-      this.showInspect(result, sx, sy);
+    if (result && result.kind === 'inspect') {
+      this.showInspect(result.unit, sx, sy);
+    } else if (result && result.kind === 'chat') {
+      this.openChat(result.unit);
     }
   }
 
@@ -135,8 +209,8 @@ class Game {
     tip.style.display = 'block';
     tip.style.left = sx + 12 + 'px';
     tip.style.top = sy + 12 + 'px';
-    tip.textContent = `${unit.species} | HP ${Math.round(unit.hp)}/${unit.maxHp} | Kingdom: ${unit.kingdom ? unit.kingdom.name : 'wild'}`;
-    setTimeout(() => { tip.style.display = 'none'; }, 2000);
+    tip.textContent = `${unit.name} | ${unit.species}${unit.role ? ' (' + unit.role + ')' : ''} | HP ${Math.round(unit.hp)}/${unit.maxHp} | ${unit.kingdom ? unit.kingdom.name : 'wild'}`;
+    setTimeout(() => { tip.style.display = 'none'; }, 2500);
   }
 
   updateTooltip(sx, sy) {
@@ -151,6 +225,35 @@ class Game {
     document.getElementById('stat-pop').textContent = `Pop: ${pop}`;
     document.getElementById('stat-kingdoms').textContent = `Kingdoms: ${this.entities.kingdoms.filter(k => k.population > 0).length}`;
     document.getElementById('stat-day').textContent = `Day: ${Math.floor(this.world.day)}`;
+
+    const panel = document.getElementById('kingdom-panel');
+    panel.innerHTML = '';
+    for (const k of this.entities.kingdoms) {
+      if (k.population === 0) continue;
+      const era = ERAS[k.era];
+      const card = document.createElement('div');
+      card.className = 'kingdom-card';
+      card.style.borderLeftColor = k.color;
+      card.innerHTML = `
+        <div class="kc-title"><span>${k.name}</span><span>${era.icon} ${era.name}</span></div>
+        <div class="kc-row">Pop ${k.population} | Food ${Math.round(k.foodStock || 0)}</div>
+        <div class="kc-row">${k.royalTitle}: ${k.royal && !k.royal.dead ? k.royal.name : '—'}</div>
+      `;
+      panel.appendChild(card);
+    }
+
+    const list = document.getElementById('announcements');
+    for (const k of this.entities.kingdoms) {
+      if (!k.announcements) continue;
+      while (k.announcements.length) {
+        const text = k.announcements.shift();
+        const div = document.createElement('div');
+        div.className = 'announcement';
+        div.textContent = text;
+        list.appendChild(div);
+        setTimeout(() => div.remove(), 6000);
+      }
+    }
   }
 
   save() {
@@ -159,9 +262,10 @@ class Game {
       tiles: Array.from(this.world.tiles),
       elevation: Array.from(this.world.elevation),
       day: this.world.day,
-      kingdoms: this.entities.kingdoms.map(k => ({ name: k.name, color: k.color })),
+      kingdoms: this.entities.kingdoms.map(k => ({ name: k.name, color: k.color, era: k.era, tech: k.tech, foodStock: k.foodStock })),
       units: this.entities.units.filter(u => !u.dead).map(u => ({
-        x: u.x, y: u.y, species: u.species, hp: u.hp, food: u.food,
+        x: u.x, y: u.y, species: u.species, hp: u.hp, food: u.food, name: u.name, role: u.role,
+        isRoyal: u.isRoyal, mount: u.mount, pet: u.pet, memory: u.memory,
         kingdomIdx: u.kingdom ? this.entities.kingdoms.indexOf(u.kingdom) : -1,
       })),
       buildings: this.entities.buildings.map(b => ({
@@ -180,13 +284,19 @@ class Game {
     this.world.tiles = Uint8Array.from(data.tiles);
     this.world.elevation = Float32Array.from(data.elevation);
     this.world.day = data.day;
-    this.entities.kingdoms = data.kingdoms.map(k => new Kingdom(k.name, k.color));
+    this.entities.kingdoms = data.kingdoms.map(k => {
+      const kd = new Kingdom(k.name, k.color);
+      kd.era = k.era; kd.tech = k.tech; kd.foodStock = k.foodStock;
+      return kd;
+    });
     this.entities.units = [];
     this.entities.buildings = [];
     for (const u of data.units) {
       const k = u.kingdomIdx >= 0 ? this.entities.kingdoms[u.kingdomIdx] : null;
       const unit = this.entities.spawnUnit(u.x, u.y, k, u.species);
-      unit.hp = u.hp; unit.food = u.food;
+      unit.hp = u.hp; unit.food = u.food; unit.name = u.name; unit.role = u.role;
+      unit.isRoyal = u.isRoyal; unit.mount = u.mount; unit.pet = u.pet; unit.memory = u.memory || [];
+      if (unit.isRoyal && k) k.royal = unit;
     }
     for (const b of data.buildings) {
       const k = b.kingdomIdx >= 0 ? this.entities.kingdoms[b.kingdomIdx] : null;
@@ -214,6 +324,8 @@ class Game {
     this.fx = this.fx.filter(f => --f.t > 0);
     this.renderer.draw(this.entities, this.fx);
     this.updateStats();
+
+    if (this.activeChatUnit && this.activeChatUnit.dead) this.closeChat();
 
     requestAnimationFrame(this.loop.bind(this));
   }

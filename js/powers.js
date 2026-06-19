@@ -1,22 +1,78 @@
 // God powers: definitions and apply logic.
-const POWERS = [
-  { id: 'inspect', icon: '👁', label: 'Inspect' },
-  { id: 'raise', icon: '⛰', label: 'Raise Land' },
-  { id: 'lower', icon: '🕳', label: 'Lower Land' },
-  { id: 'water', icon: '💧', label: 'Flood' },
-  { id: 'fire', icon: '🔥', label: 'Ignite' },
-  { id: 'lightning', icon: '⚡', label: 'Lightning' },
-  { id: 'meteor', icon: '☄️', label: 'Meteor' },
-  { id: 'tornado', icon: '🌪', label: 'Tornado' },
-  { id: 'earthquake', icon: '🌋', label: 'Quake' },
-  { id: 'rain', icon: '🌧', label: 'Rain' },
-  { id: 'grow', icon: '🌱', label: 'Grow' },
-  { id: 'spawnHuman', icon: '🧍', label: 'Spawn Tribe' },
-  { id: 'spawnWolf', icon: '🐺', label: 'Spawn Wolf' },
-  { id: 'spawnDragon', icon: '🐉', label: 'Spawn Dragon' },
-  { id: 'heal', icon: '💚', label: 'Heal' },
-  { id: 'kill', icon: '💀', label: 'Smite' },
+const POWER_GROUPS = [
+  {
+    label: 'Terrain',
+    powers: [
+      { id: 'inspect', icon: '👁', label: 'Inspect' },
+      { id: 'chat', icon: '💬', label: 'Chat' },
+      { id: 'raise', icon: '⛰', label: 'Raise' },
+      { id: 'lower', icon: '🕳', label: 'Lower' },
+      { id: 'water', icon: '💧', label: 'Flood' },
+      { id: 'grow', icon: '🌱', label: 'Grow' },
+      { id: 'rain', icon: '🌧', label: 'Rain' },
+    ],
+  },
+  {
+    label: 'Disasters',
+    powers: [
+      { id: 'fire', icon: '🔥', label: 'Ignite' },
+      { id: 'lightning', icon: '⚡', label: 'Lightning' },
+      { id: 'meteor', icon: '☄️', label: 'Meteor' },
+      { id: 'tornado', icon: '🌪', label: 'Tornado' },
+      { id: 'earthquake', icon: '🌋', label: 'Quake' },
+    ],
+  },
+  {
+    label: 'Life',
+    powers: [
+      { id: 'spawnHuman', icon: '🧍', label: 'New Tribe' },
+      { id: 'spawnWolf', icon: '🐺', label: 'Wolves' },
+      { id: 'spawnDragon', icon: '🐉', label: 'Wild Dragon' },
+      { id: 'spawnHorse', icon: '🐎', label: 'Mount Horse' },
+      { id: 'mountDragon', icon: '🐲', label: 'Mount Dragon' },
+      { id: 'petDog', icon: '🐕', label: 'Pet Dog' },
+      { id: 'heal', icon: '💚', label: 'Heal' },
+      { id: 'kill', icon: '💀', label: 'Smite' },
+    ],
+  },
+  {
+    label: 'Buildings',
+    powers: [
+      { id: 'buildFarm', icon: '🌾', label: 'Farm' },
+      { id: 'buildRanch', icon: '🐄', label: 'Ranch' },
+      { id: 'buildSchool', icon: '📚', label: 'School' },
+      { id: 'buildChurch', icon: '⛪', label: 'Church' },
+      { id: 'buildHospital', icon: '⚕️', label: 'Hospital' },
+      { id: 'buildPolice', icon: '🚓', label: 'Police' },
+      { id: 'buildBarracks', icon: '⚔️', label: 'Barracks' },
+      { id: 'buildAirport', icon: '✈️', label: 'Airport' },
+    ],
+  },
 ];
+
+const POWERS = POWER_GROUPS.flatMap(g => g.powers);
+
+function nearestKingdomTo(em, wx, wy, maxD = 25) {
+  let best = null, bestD = maxD * maxD;
+  for (const k of em.kingdoms) {
+    for (const b of k.buildings) {
+      if (b.type !== 'capital') continue;
+      const d = (b.x - wx) ** 2 + (b.y - wy) ** 2;
+      if (d < bestD) { bestD = d; best = k; }
+    }
+  }
+  return best;
+}
+
+function nearestHumanTo(em, wx, wy, maxD = 6) {
+  let best = null, bestD = maxD * maxD;
+  for (const u of em.units) {
+    if (u.dead || u.species !== 'human') continue;
+    const d = (u.x - wx) ** 2 + (u.y - wy) ** 2;
+    if (d < bestD) { bestD = d; best = u; }
+  }
+  return best;
+}
 
 function applyPower(game, powerId, wx, wy, brush) {
   const w = game.world;
@@ -33,6 +89,19 @@ function applyPower(game, powerId, wx, wy, brush) {
     }
   };
 
+  const buildAt = (type) => {
+    const k = nearestKingdomTo(em, wx, wy);
+    if (!k) return;
+    const x = Math.round(wx), y = Math.round(wy);
+    if (!w.isWalkable(x, y)) return;
+    const b = new Building(x, y, k, type);
+    k.buildings.add(b);
+    em.buildings.push(b);
+    if (type === 'ranch') {
+      for (let i = 0; i < 3; i++) em.livestock.push(new Livestock(x + (Math.random() - 0.5) * 2, y + (Math.random() - 0.5) * 2, k, pick(['cow', 'sheep', 'chicken'])));
+    }
+  };
+
   switch (powerId) {
     case 'inspect': {
       let nearest = null, bestD = Infinity;
@@ -40,7 +109,16 @@ function applyPower(game, powerId, wx, wy, brush) {
         const d = (u.x - wx) ** 2 + (u.y - wy) ** 2;
         if (d < bestD) { bestD = d; nearest = u; }
       }
-      return nearest && bestD < 4 ? nearest : null;
+      return nearest && bestD < 4 ? { kind: 'inspect', unit: nearest } : null;
+    }
+    case 'chat': {
+      let nearest = null, bestD = Infinity;
+      for (const u of em.units) {
+        if (u.dead || u.species === 'airplane') continue;
+        const d = (u.x - wx) ** 2 + (u.y - wy) ** 2;
+        if (d < bestD) { bestD = d; nearest = u; }
+      }
+      return nearest && bestD < 4 ? { kind: 'chat', unit: nearest } : null;
     }
     case 'raise':
       forEachTile((x, y, i) => { w.elevation[i] = Math.min(1, w.elevation[i] + 0.05); recalcTile(w, x, y); });
@@ -114,6 +192,21 @@ function applyPower(game, powerId, wx, wy, brush) {
     case 'spawnDragon':
       em.spawnAnimal(Math.round(wx), Math.round(wy), 'dragon');
       break;
+    case 'spawnHorse': {
+      const human = nearestHumanTo(em, wx, wy);
+      if (human) human.mount = 'horse';
+      break;
+    }
+    case 'mountDragon': {
+      const human = nearestHumanTo(em, wx, wy);
+      if (human) human.mount = 'dragon';
+      break;
+    }
+    case 'petDog': {
+      const human = nearestHumanTo(em, wx, wy);
+      if (human) human.pet = 'dog';
+      break;
+    }
     case 'heal':
       for (const u of em.units) {
         const d = Math.hypot(u.x - wx, u.y - wy);
@@ -126,6 +219,14 @@ function applyPower(game, powerId, wx, wy, brush) {
         if (d < r + 0.5) u.hp = 0;
       }
       break;
+    case 'buildFarm': buildAt('farm'); break;
+    case 'buildRanch': buildAt('ranch'); break;
+    case 'buildSchool': buildAt('school'); break;
+    case 'buildChurch': buildAt('church'); break;
+    case 'buildHospital': buildAt('hospital'); break;
+    case 'buildPolice': buildAt('police'); break;
+    case 'buildBarracks': buildAt('barracks'); break;
+    case 'buildAirport': buildAt('airport'); break;
   }
   return null;
 }

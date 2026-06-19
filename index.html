@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WorldBox Clone - Sandbox God Game</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="world-canvas"></canvas>
+    <canvas id="fx-canvas"></canvas>
+
+    <div id="top-bar">
+      <div id="title">🌍 WorldBox Clone</div>
+      <div id="stats">
+        <span id="stat-pop">Pop: 0</span>
+        <span id="stat-kingdoms">Kingdoms: 0</span>
+        <span id="stat-day">Day: 0</span>
+      </div>
+      <div id="time-controls">
+        <button id="btn-pause" title="Pause">⏸</button>
+        <button id="btn-speed1" class="active" title="Normal speed">1x</button>
+        <button id="btn-speed2" title="Fast">2x</button>
+        <button id="btn-speed4" title="Very fast">4x</button>
+      </div>
+      <div id="save-controls">
+        <button id="btn-save">Save</button>
+        <button id="btn-load">Load</button>
+        <button id="btn-new">New World</button>
+      </div>
+    </div>
+
+    <div id="power-bar"></div>
+
+    <div id="brush-size-control">
+      <label>Brush: <span id="brush-size-label">3</span></label>
+      <input type="range" id="brush-size" min="1" max="12" value="3">
+    </div>
+
+    <div id="tooltip"></div>
+  </div>
+
+  <script src="js/noise.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/powers.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

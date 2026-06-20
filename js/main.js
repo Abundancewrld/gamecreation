@@ -17,6 +17,7 @@ class Game {
     this.lastTime = performance.now();
     this.activeChatUnit = null;
     this.seenAnnouncements = 0;
+    this.entities.onEvent = (text) => this.logEvent(text);
 
     this.seedKingdoms(3);
     this.bindUI();
@@ -96,6 +97,16 @@ class Game {
     let dragging = false, dragStart = null, camStart = null;
     let mouseDown = false;
     let lastApply = 0;
+    let downPos = null;
+    let movedSinceDown = false;
+
+    // Powers that "paint" should keep applying while you drag. Powers that
+    // target a single entity (chat, inspect, mounts, kill, building
+    // placement...) should only fire once per click - continuously
+    // re-targeting during a drag is what made clicking feel unreliable.
+    const CONTINUOUS_POWERS = new Set([
+      'raise', 'lower', 'water', 'fire', 'grow', 'rain', 'earthquake', 'spawnWolf',
+    ]);
 
     canvas.style.pointerEvents = 'auto';
 
@@ -106,6 +117,8 @@ class Game {
         camStart = [this.renderer.camX, this.renderer.camY];
       } else {
         mouseDown = true;
+        downPos = [e.clientX, e.clientY];
+        movedSinceDown = false;
         this.applyAtScreen(e.clientX, e.clientY);
       }
     });
@@ -118,10 +131,15 @@ class Game {
         this.renderer.camX = camStart[0] - (e.clientX - dragStart[0]) / ts;
         this.renderer.camY = camStart[1] - (e.clientY - dragStart[1]) / ts;
       } else if (mouseDown) {
-        const now = performance.now();
-        if (now - lastApply > 80) {
-          this.applyAtScreen(e.clientX, e.clientY);
-          lastApply = now;
+        if (downPos && Math.hypot(e.clientX - downPos[0], e.clientY - downPos[1]) > 4) {
+          movedSinceDown = true;
+        }
+        if (CONTINUOUS_POWERS.has(this.selectedPower) || !movedSinceDown) {
+          const now = performance.now();
+          if (now - lastApply > 80) {
+            this.applyAtScreen(e.clientX, e.clientY);
+            lastApply = now;
+          }
         }
       }
       this.updateTooltip(e.clientX, e.clientY);
@@ -202,6 +220,17 @@ class Game {
     } else if (result && result.kind === 'chat') {
       this.openChat(result.unit);
     }
+  }
+
+  logEvent(text) {
+    const list = document.getElementById('event-ticker');
+    if (!list) return;
+    const div = document.createElement('div');
+    div.className = 'ticker-msg';
+    div.textContent = text;
+    list.prepend(div);
+    setTimeout(() => div.remove(), 8000);
+    while (list.children.length > 6) list.removeChild(list.lastChild);
   }
 
   showInspect(unit, sx, sy) {

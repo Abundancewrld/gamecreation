@@ -18,7 +18,7 @@ class Renderer {
     this.tileSize = 10;
     this.camX = world.width / 2;
     this.camY = world.height / 2;
-    this.zoom = 1;
+    this.zoom = 1.6;
     this.tileJitter = new ValueNoise(world.seed + 555);
     this.frame = 0;
     this.resize();
@@ -130,14 +130,19 @@ class Renderer {
       ctx.fill();
       // walls
       ctx.fillStyle = b.kingdom ? b.kingdom.color : '#888';
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.lineWidth = Math.max(1, size * 0.06);
       ctx.fillRect(sx - size * 0.4, sy - size * 0.1, size * 0.8, size * 0.5);
+      ctx.strokeRect(sx - size * 0.4, sy - size * 0.1, size * 0.8, size * 0.5);
       // roof
       ctx.fillStyle = tint;
       ctx.beginPath();
       ctx.moveTo(sx - size * 0.5, sy - size * 0.1);
       ctx.lineTo(sx, sy - size * 0.55);
       ctx.lineTo(sx + size * 0.5, sy - size * 0.1);
+      ctx.closePath();
       ctx.fill();
+      ctx.stroke();
       if (ts > 10) {
         ctx.font = `${Math.max(8, size * 0.5)}px sans-serif`;
         ctx.textAlign = 'center';
@@ -184,18 +189,22 @@ class Renderer {
       ctx.ellipse(sx, sy + size * 0.9, size * 0.9, size * 0.35, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // body
+      // body, with a dark outline so units read clearly against any terrain
+      const r2 = Math.max(2.6, size);
       ctx.beginPath();
       ctx.fillStyle = bodyColor;
-      ctx.arc(sx, sy, Math.max(1.5, size), 0, Math.PI * 2);
+      ctx.arc(sx, sy, r2, 0, Math.PI * 2);
       ctx.fill();
+      ctx.lineWidth = Math.max(1, r2 * 0.18);
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.stroke();
 
       // role tint ring for humans
       if (u.species === 'human' && u.role && ROLE_COLOR[u.role]) {
         ctx.strokeStyle = ROLE_COLOR[u.role];
-        ctx.lineWidth = Math.max(1, size * 0.25);
+        ctx.lineWidth = Math.max(1.2, size * 0.25);
         ctx.beginPath();
-        ctx.arc(sx, sy, Math.max(1.5, size) - ctx.lineWidth * 0.5, 0, Math.PI * 2);
+        ctx.arc(sx, sy, r2 + ctx.lineWidth * 0.6, 0, Math.PI * 2);
         ctx.stroke();
       }
 

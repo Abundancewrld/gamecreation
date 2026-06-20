@@ -128,7 +128,10 @@ class EntityManager {
     this.buildings = [];
     this.livestock = [];
     this.colorIdx = 0;
+    this.onEvent = null; // set by main.js to surface a live activity ticker
   }
+
+  emit(text) { if (this.onEvent) this.onEvent(text); }
 
   spawnKingdomAt(x, y, speciesCount = 6) {
     const color = KINGDOM_COLORS[this.colorIdx % KINGDOM_COLORS.length];
@@ -276,7 +279,8 @@ class EntityManager {
         }
         if (u.desire === 'build_a_family' && u.food > 60 && Math.random() < 0.003 * speedMul && u.kingdom && u.kingdom.units.size < 250) {
           u.food -= 30;
-          this.spawnUnit(u.x + (Math.random() - 0.5) * 2, u.y + (Math.random() - 0.5) * 2, u.kingdom, 'human');
+          const child = this.spawnUnit(u.x + (Math.random() - 0.5) * 2, u.y + (Math.random() - 0.5) * 2, u.kingdom, 'human');
+          this.emit(`👶 ${child.name} was born in ${u.kingdom.name}.`);
         }
 
         // mood drifts with how life is actually treating them
@@ -309,7 +313,8 @@ class EntityManager {
       // reproduction near capital
       if (u.species === 'human' && u.kingdom && u.food > 80 && Math.random() < 0.0015 * speedMul && u.kingdom.units.size < 250) {
         u.food -= 30;
-        this.spawnUnit(u.x + (Math.random() - 0.5) * 2, u.y + (Math.random() - 0.5) * 2, u.kingdom, 'human');
+        const child = this.spawnUnit(u.x + (Math.random() - 0.5) * 2, u.y + (Math.random() - 0.5) * 2, u.kingdom, 'human');
+        this.emit(`👶 ${child.name} was born in ${u.kingdom.name}.`);
       }
     }
 
@@ -335,6 +340,7 @@ class EntityManager {
       if (a !== b && !a.atWarWith.has(b)) {
         a.atWarWith.add(b);
         b.atWarWith.add(a);
+        this.emit(`⚔️ ${a.name} declared war on ${b.name}!`);
       }
     }
   }

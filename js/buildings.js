@@ -96,6 +96,7 @@ function cityTick(kingdom, world, em, speedMul) {
           const b = new Building(spot[0], spot[1], kingdom, type);
           kingdom.buildings.add(b);
           em.buildings.push(b);
+          em.emit(`${(BUILDING_TYPES[type] || {}).icon || '🏗️'} ${kingdom.name} built a new ${(BUILDING_TYPES[type] || {}).label || type}.`);
           if (type === 'ranch') {
             for (let i = 0; i < 3; i++) {
               em.livestock.push(new Livestock(spot[0] + (Math.random() - 0.5) * 2, spot[1] + (Math.random() - 0.5) * 2, kingdom, pick(['cow', 'sheep', 'chicken'])));

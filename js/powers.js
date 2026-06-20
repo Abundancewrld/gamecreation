@@ -104,21 +104,23 @@ function applyPower(game, powerId, wx, wy, brush) {
 
   switch (powerId) {
     case 'inspect': {
+      const reach = Math.max(2, r) ** 2;
       let nearest = null, bestD = Infinity;
       for (const u of em.units) {
         const d = (u.x - wx) ** 2 + (u.y - wy) ** 2;
         if (d < bestD) { bestD = d; nearest = u; }
       }
-      return nearest && bestD < 4 ? { kind: 'inspect', unit: nearest } : null;
+      return nearest && bestD < reach ? { kind: 'inspect', unit: nearest } : null;
     }
     case 'chat': {
+      const reach = Math.max(2, r) ** 2;
       let nearest = null, bestD = Infinity;
       for (const u of em.units) {
         if (u.dead || u.species === 'airplane') continue;
         const d = (u.x - wx) ** 2 + (u.y - wy) ** 2;
         if (d < bestD) { bestD = d; nearest = u; }
       }
-      return nearest && bestD < 4 ? { kind: 'chat', unit: nearest } : null;
+      return nearest && bestD < reach ? { kind: 'chat', unit: nearest } : null;
     }
     case 'raise':
       forEachTile((x, y, i) => { w.elevation[i] = Math.min(1, w.elevation[i] + 0.05); recalcTile(w, x, y); });

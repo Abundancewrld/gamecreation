@@ -171,6 +171,33 @@ button.active { background: #ffd166; color: #222; border-color: #ffd166; }
   100% { opacity: 0; }
 }
 
+#event-ticker {
+  position: absolute;
+  bottom: 130px;
+  left: 16px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 320px;
+  pointer-events: none;
+}
+.ticker-msg {
+  background: rgba(20,20,30,0.8);
+  color: #ddd;
+  padding: 4px 9px;
+  border-radius: 5px;
+  font-size: 12px;
+  border-left: 3px solid #ffd166;
+  animation: tickerFade 8s forwards;
+}
+@keyframes tickerFade {
+  0% { opacity: 0; transform: translateY(4px); }
+  8% { opacity: 1; transform: translateY(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 #chat-panel {
   position: absolute;
   top: 70px;

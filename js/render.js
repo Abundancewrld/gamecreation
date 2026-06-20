@@ -23,6 +23,13 @@ class Renderer {
     this.frame = 0;
     this.sprites = {};
     this.loadSprite('house', 'assets/buildings/house.png');
+    this.loadSprite('rock1', 'assets/decor/rock1.png');
+    this.loadSprite('rock2', 'assets/decor/rock2.png');
+    this.loadSprite('rock3', 'assets/decor/rock3.png');
+    this.loadSprite('waterrock1', 'assets/decor/waterrock1.png');
+    this.loadSprite('bush1', 'assets/decor/bush1.png');
+    this.loadSprite('bush2', 'assets/decor/bush2.png');
+    this.decorNoise = new ValueNoise(world.seed + 999);
     this.resize();
   }
 
@@ -112,6 +119,34 @@ class Renderer {
           ctx.lineTo(sx + ts * 0.75, sy + ts * 0.4);
           ctx.lineTo(sx + ts * 0.25, sy + ts * 0.4);
           ctx.fill();
+        }
+
+        // scattered rock/bush decorations - deterministic per tile so they don't
+        // flicker between frames, sparse enough to avoid a uniform grid look
+        if (ts > 6) {
+          const dn = this.decorNoise.noise2D(x, y, 1, 0.5, 1);
+          if ((tile === TILE.GRASS || tile === TILE.FOREST) && dn > 0.985) {
+            const sprite = this.sprites[dn > 0.994 ? 'bush1' : (dn > 0.99 ? 'bush2' : 'rock1')];
+            if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+              const dw = ts * 1.1;
+              const dh = dw * (sprite.naturalHeight / sprite.naturalWidth);
+              ctx.drawImage(sprite, sx + ts * 0.5 - dw / 2, sy + ts - dh, dw, dh);
+            }
+          } else if ((tile === TILE.HILL || tile === TILE.MOUNTAIN) && dn > 0.99) {
+            const sprite = this.sprites[dn > 0.996 ? 'rock3' : 'rock2'];
+            if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+              const dw = ts * 0.9;
+              const dh = dw * (sprite.naturalHeight / sprite.naturalWidth);
+              ctx.drawImage(sprite, sx + ts * 0.5 - dw / 2, sy + ts - dh, dw, dh);
+            }
+          } else if (tile === TILE.WATER && dn > 0.992) {
+            const sprite = this.sprites.waterrock1;
+            if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+              const dw = ts * 1.0;
+              const dh = dw * (sprite.naturalHeight / sprite.naturalWidth);
+              ctx.drawImage(sprite, sx + ts * 0.5 - dw / 2, sy + ts - dh, dw, dh);
+            }
+          }
         }
 
         if (w.fire[i] > 0) {

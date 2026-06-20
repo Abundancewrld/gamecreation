@@ -21,7 +21,15 @@ class Renderer {
     this.zoom = 1.6;
     this.tileJitter = new ValueNoise(world.seed + 555);
     this.frame = 0;
+    this.sprites = {};
+    this.loadSprite('house', 'assets/buildings/house.png');
     this.resize();
+  }
+
+  loadSprite(name, src) {
+    const img = new Image();
+    img.src = src;
+    this.sprites[name] = img;
   }
 
   resize() {
@@ -128,21 +136,42 @@ class Renderer {
       ctx.beginPath();
       ctx.ellipse(sx, sy + size * 0.3, size * 0.55, size * 0.22, 0, 0, Math.PI * 2);
       ctx.fill();
-      // walls
-      ctx.fillStyle = b.kingdom ? b.kingdom.color : '#888';
-      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-      ctx.lineWidth = Math.max(1, size * 0.06);
-      ctx.fillRect(sx - size * 0.4, sy - size * 0.1, size * 0.8, size * 0.5);
-      ctx.strokeRect(sx - size * 0.4, sy - size * 0.1, size * 0.8, size * 0.5);
-      // roof
-      ctx.fillStyle = tint;
-      ctx.beginPath();
-      ctx.moveTo(sx - size * 0.5, sy - size * 0.1);
-      ctx.lineTo(sx, sy - size * 0.55);
-      ctx.lineTo(sx + size * 0.5, sy - size * 0.1);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
+
+      const sprite = (b.type === 'house' || b.type === 'capital') ? this.sprites.house : null;
+      if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+        const dw = size * (b.type === 'capital' ? 2.4 : 1.9);
+        const dh = dw * (sprite.naturalHeight / sprite.naturalWidth);
+        ctx.drawImage(sprite, sx - dw / 2, sy - dh * 0.78, dw, dh);
+        if (b.kingdom) {
+          ctx.fillStyle = b.kingdom.color;
+          ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+          ctx.lineWidth = Math.max(1, size * 0.05);
+          ctx.beginPath();
+          ctx.moveTo(sx - size * 0.04, sy - size * 0.55);
+          ctx.lineTo(sx - size * 0.04, sy - size * 0.95);
+          ctx.lineTo(sx + size * 0.3, sy - size * 0.78);
+          ctx.lineTo(sx - size * 0.04, sy - size * 0.62);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+      } else {
+        // walls
+        ctx.fillStyle = b.kingdom ? b.kingdom.color : '#888';
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+        ctx.lineWidth = Math.max(1, size * 0.06);
+        ctx.fillRect(sx - size * 0.4, sy - size * 0.1, size * 0.8, size * 0.5);
+        ctx.strokeRect(sx - size * 0.4, sy - size * 0.1, size * 0.8, size * 0.5);
+        // roof
+        ctx.fillStyle = tint;
+        ctx.beginPath();
+        ctx.moveTo(sx - size * 0.5, sy - size * 0.1);
+        ctx.lineTo(sx, sy - size * 0.55);
+        ctx.lineTo(sx + size * 0.5, sy - size * 0.1);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
       if (ts > 10) {
         ctx.font = `${Math.max(8, size * 0.5)}px sans-serif`;
         ctx.textAlign = 'center';
